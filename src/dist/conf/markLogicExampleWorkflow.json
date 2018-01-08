@@ -1,0 +1,95 @@
+{
+  "eventFrequency": 1,
+  "varyEventFrequency": false,
+  "repeatWorkflow": true,
+  "timeBetweenRepeat": 0,
+  "varyRepeatFrequency": false,
+  "steps": [{
+    "config": [
+      {
+        "UUID" : "uuid()",
+        "DATE" : "date()",
+        "DATE_END" : "date(this.DATE)",
+        "content": {
+          "@id": "stringMerge(/,http://192.168.1.200/observations,this.UUID)",
+          "custom:created": {
+            "custom:dateTime": {
+              "@type": "xsd:dateTime",
+              "@value": "now()"
+            },
+            "custom:userDN": "CN=testuser,DC=example,DC=com"
+          },
+          "custom:egid": "this.UUID",          
+          "custom:startApplicabilityTime": {
+            "@type": "xsd:dateTime",
+            "@value": "this.DATE"
+          },
+          "custom:endApplicabilityTime": {
+            "@type": "xsd:dateTime",
+            "@value": "this.DATE_END"
+          },
+          "soci:jsonSecurityLabel": "{\"http://fcms.bae.com/vocab/ism#bannerMark\":\"UNCLASSIFIED\",\"http://fcms.bae.com/vocab/ism#classification\":\"U\",\"http://fcms.bae.com/vocab/ism#ownerProducer\":[\"USA\"],\"http://fcms.bae.com/vocab/ism#portionMark\":\"U\"}",
+          "rdf:type": "custom:ObjectObservation",
+          "@context": [
+            {
+              "custom": "http://fcms.bae.com/custom/vocab/soc#",
+              "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+              "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+              "xsd": "http://www.w3.org/2001/XMLSchema#",
+              "skos": "http://www.w3.org/2004/02/skos/core#",
+              "owl": "http://www.w3.org/2002/07/owl#",
+              "dc": "http://purl.org/dc/elements/1.1/"
+            },
+            {
+              "rdf:type": {
+                "@id": "rdf:type",
+                "@type": "@id"
+              }
+            }
+          ]
+        },
+        "metadata": {
+          "geometry": [
+            {
+              "custim:geometry": "POLYGON((-96.416016 43.2932,-96.4161 43.2931,-96.41595 43.29315,-96.416 43.29315,-96.416016 43.2932))",
+              "centroid:": "43.293148,-96.416023"
+            }
+          ]
+        },
+        "semanticsData": [
+          {
+            "triple": {
+              "subject": "stringMerge(/,http://192.168.1.200/observations,this.UUID)",
+              "predicate": "http://fcms.bae.com/MarkLogicDocURI",
+              "object": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#string",
+                "value": "this.UUID"
+              }
+            }
+          },
+          {
+            "triple": {
+              "subject": "stringMerge(/,http://192.168.1.200/observations,this.UUID)",
+              "predicate": "http://fcms.bae.com/vocab/custom#startApplicabilityTime",
+              "object": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "value": "this.DATE"
+              }
+            }
+          },
+          {
+            "triple": {
+              "subject": "stringMerge(/,http://192.168.1.200/observations,this.UUID)",
+              "predicate": "http://fcms.bae.com/vocab/custom#endApplicabilityTime",
+              "object": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "value": "this.DATE_END"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "duration" : 0
+  }]
+}
