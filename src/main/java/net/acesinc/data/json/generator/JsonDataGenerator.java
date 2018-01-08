@@ -11,6 +11,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import com.marklogic.client.MarkLogicServerException;
 import net.acesinc.data.json.generator.config.SimulationConfig;
 import net.acesinc.data.json.generator.config.JSONConfigReader;
 import net.acesinc.data.json.generator.log.*;
@@ -89,6 +91,14 @@ public class JsonDataGenerator {
                             log.error("Azure IoT Hub Logger unable to initialize", ex);
                         }
                         break;
+                    }
+                    case "marklogic": {
+                        log.info("Adding MarkLogic logger with properties: " + elProps);
+                        try {
+                            loggers.add(new MarkLogicLogger(elProps));
+                        } catch (MarkLogicServerException ex) {
+                            log.error("MarkLogic Exception: " + ex.getMessage(), ex);
+                        }
                     }
                 }
             }

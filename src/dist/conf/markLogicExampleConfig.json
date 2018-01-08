@@ -1,0 +1,21 @@
+{
+	"workflows" : [{
+		"workflowName" : "markLogicGeneration",
+		"workflowFilename" : "markLogicExampleWorkflow.json"
+	}],
+	"producers": [{
+		"type" : "marklogic",
+		"host" : "localhost",
+		"port" : 8050,
+		"username" : "<credentials><gx_attr_dn>admin</gx_attr_dn><groups>admin</groups></credentials>",
+		"password" : "",
+		"authtype" : "BASIC",
+		"uriPath"  : "UUID",
+		"collections" : "test-generate-data,mdc-test",
+		"metadataNames" : "egid,startApplicabilityTime",
+ 		"metadataPaths" : "content.custom:egid,content.custom:startApplicabilityTime.@value",
+ 		"propertyNames" : "egid,startApplicabilityTime",
+ 		"propertyPaths" : "content.custom:egid,content.custom:startApplicabilityTime.@value",
+ 		"firstNode"  : "content" 
+	}]
+}
