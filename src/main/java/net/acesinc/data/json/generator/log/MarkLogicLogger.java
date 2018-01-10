@@ -4,7 +4,9 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.marklogic.client.DatabaseClient;
 import com.marklogic.client.DatabaseClientFactory;
-import com.marklogic.client.document.JSONDocumentManager;
+import com.marklogic.client.datamovement.DataMovementManager;
+import com.marklogic.client.datamovement.JobTicket;
+import com.marklogic.client.datamovement.WriteBatcher;
 import com.marklogic.client.io.DocumentMetadataHandle;
 import com.marklogic.client.io.Format;
 import com.marklogic.client.io.StringHandle;
@@ -35,6 +37,9 @@ public class MarkLogicLogger implements EventLogger {
     public static final String FIRST_NODE = "firstNode";
 
     private DatabaseClient client;
+    private DataMovementManager manager;
+    private WriteBatcher batchWriter;
+    private JobTicket ticket;
     private String host;
     private int port;
     private String username;
@@ -63,17 +68,35 @@ public class MarkLogicLogger implements EventLogger {
         this.uriField = (String) props.get(DOCUMENT_URI_PROP_NAME);
         this.firstNode = (String) props.get(FIRST_NODE);
 
+        validateInputs();
+
+        if (this.auth.equals(AuthScheme.DIGEST)) {
+            client = DatabaseClientFactory.newClient(host,port, new DatabaseClientFactory.DigestAuthContext(this.username, this.password));
+        } else { // must be BASIC then
+            client = DatabaseClientFactory.newClient(host,port, new DatabaseClientFactory.BasicAuthContext(this.username, this.password));
+        }
+
+
+        this.manager = client.newDataMovementManager();
+        this.batchWriter = manager.newWriteBatcher()
+                .withJobName("DMSDK Batcher" + Thread.currentThread().getName())
+                .withBatchSize(50)
+                .onBatchSuccess(batch -> { log.debug("batch # {}, so far: {}", batch.getJobBatchNumber(), batch.getJobWritesSoFar());})
+                .onBatchFailure((batch,throwable) -> throwable.printStackTrace() );
+
+        this.ticket = manager.startJob(this.batchWriter);
+    }
+
+    private void validateInputs() {
+
         if (!(this.auth.equals(AuthScheme.BASIC) || this.auth.equals(AuthScheme.DIGEST))) {
             throw new UnsupportedOperationException("Currently only BASIC or DIGEST supported.");
         }
-
-//        log.debug("Creating Connection to Database...");
-        if (this.auth.equals(AuthScheme.DIGEST)) {
-            client = DatabaseClientFactory.newClient(host,port, new DatabaseClientFactory.DigestAuthContext(this.username, this.password));
-//            log.debug("Client Created using DIGEST authentication");
-        } else { // must be BASIC then
-            client = DatabaseClientFactory.newClient(host,port, new DatabaseClientFactory.BasicAuthContext(this.username, this.password));
-//            log.debug("Client Created using BASIC authentication");
+        if (this.propertyFields.size() != this.propertyFieldNames.size()) {
+            throw new IllegalArgumentException("Property Field and Property Field Names must be same size");
+        }
+        if (this.metadataFields.size() != this.metadataFieldNames.size()) {
+            throw new IllegalArgumentException("Metadata Field and Metadata Field Names must be same size");
         }
 
     }
@@ -82,12 +105,6 @@ public class MarkLogicLogger implements EventLogger {
     public void logEvent(String event, Map<String, Object> producerConfig) {
         CustomEvent ce = processEvent(event);
 
-        JSONDocumentManager dm = client.newJSONDocumentManager();
-
-        StringHandle sh = new StringHandle(ce.getCleaned());
-
-        sh.withFormat(Format.JSON);
-        sh.withMimetype("application/json");
 
         DocumentMetadataHandle metadataHandle = new DocumentMetadataHandle();
         Map<String,String> metadata = ce.getMetadata();
@@ -98,10 +115,9 @@ public class MarkLogicLogger implements EventLogger {
         for (String key:props.keySet()) {
             metadataHandle.getProperties().put(key,props.get(key));
         }
-
         metadataHandle.getCollections().addAll(collections);
 
-        dm.write(ce.getUri(), metadataHandle, sh);
+        batchWriter.add(ce.getUri(), metadataHandle, new StringHandle(ce.getCleaned()).withFormat(Format.JSON));
     }
 
     private class CustomEvent {
@@ -134,17 +150,12 @@ public class MarkLogicLogger implements EventLogger {
         ce.setUri((String) JsonPath.read(document, this.uriField));
 
         for (int i=0; i < metadataFieldNames.size(); i++) {
-//            log.debug("Attempting to add metadata for: " + metadataFieldNames.get(i));
-//            log.debug("Read Result was: " + JsonPath.read(document,metadataFields.get(i)));
             ce.addMetadata(metadataFieldNames.get(i), (String) JsonPath.read(document,metadataFields.get(i)));
         }
         for (int i=0; i < propertyFieldNames.size(); i++) {
-//            log.debug("Attempting to add property for: " + propertyFieldNames.get(i));
             ce.addProperty(propertyFieldNames.get(i), (String) JsonPath.read(document,propertyFields.get(i)));
         }
 
-//        log.debug("event: " + event);
-//        log.debug("event.indexOf " + firstNode + ": "  );
         if (!firstNode.equals(null)) {
             ce.setCleaned("{" + event.substring(event.indexOf(firstNode) - 1));
         } else ce.setCleaned(ce.getOriginal());
@@ -154,8 +165,9 @@ public class MarkLogicLogger implements EventLogger {
 
     @Override
     public void shutdown() {
-        client.release() ;
+        this.batchWriter.flushAndWait();
+        manager.stopJob(ticket);
+        manager.release();
     }
-
 
 }
